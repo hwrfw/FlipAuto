@@ -13,7 +13,7 @@
 
 | 文件 | 大小 | 系统 |
 | --- | --- | --- |
-| [FlipAuto-6.1-release.apk](https://github.com/hwrfw/FlipAuto/releases/latest) | 20 MB | Android 13（One UI 5.1）及以上 |
+| [FlipAuto-6.0-release.apk](https://github.com/hwrfw/FlipAuto/releases/latest) | 20 MB | Android 13（One UI 5.1）及以上 |
 
 ## 四步上手
 
