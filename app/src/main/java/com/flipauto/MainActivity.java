@@ -314,7 +314,7 @@ public final class MainActivity extends Activity {
             case "group_appearance" -> { // 状态栏与外观：状态栏、悬浮栏风格、面板背景
                 for (String key : new String[]{"status_enabled", "status_scale", "status_safe_left", "status_safe_right",
                         "status_preset", "status_notification_count", "battery_percent", "battery_percent_inside",
-                        "chrome_style", "panel_blur", "ui_scale"}) editor.remove(key);
+                        "status_speed_precise", "chrome_style", "panel_blur", "ui_scale"}) editor.remove(key);
                 for (String item : Prefs.STATUS_ITEMS) editor.remove("status_" + item);
             }
             case "group_apps" -> { // 应用与小组件：应用 Dock 与中心
@@ -388,6 +388,10 @@ public final class MainActivity extends Activity {
             {"cellular", "移动网络", "最多双卡，需要电话状态权限"}
         };
         for (String[] item : items) { Switch control = toggle(contents, item[1], item[2], "status_" + item[0], true); control.setOnCheckedChangeListener((button, checked) -> { if (bindingUI) return; prefs.data.edit().putBoolean("status_" + item[0], checked).apply(); SettingsUi.ValueRow row = body.findViewWithTag("status-preset"); row.value(choiceLabel(new String[]{"极简", "日常", "全部"}, new Object[]{"minimal", "daily", "full"}, prefs.statusPreset())); }); }
+        LinearLayout speedOptions = group("speed-options");
+        Switch preciseSpeed = toggle(speedOptions, "VPN 精确网速", "开 VPN 时按网络类型统计，同一份流量只计一次", "status_speed_precise", false);
+        preciseSpeed.setOnCheckedChangeListener((button, checked) -> { if (bindingUI) return; prefs.data.edit().putBoolean("status_speed_precise", checked).apply(); if (checked && !UsageAccess.granted(this)) UsageAccess.open(this); });
+        permission(speedOptions, "使用情况访问", "「VPN 精确网速」依赖此权限；未授权时按系统总量显示", () -> UsageAccess.granted(this) ? "已授权" : "未授权", () -> UsageAccess.open(this));
         LinearLayout battery = group("battery-options"); toggle(battery, "常驻电量百分比", "状态栏与控制中心始终显示电量百分比", "battery_percent", false); toggle(battery, "电源内显示电量", "在电池图标内部显示百分比数字", "battery_percent_inside", false);
         LinearLayout notifOpts = group("notification-options"); choice(notifOpts, "通知图标数量", "status-notif-count", new String[]{"2 个", "3 个", "4 个", "5 个", "6 个", "7 个", "8 个"}, new Object[]{2, 3, 4, 5, 6, 7, 8}, () -> prefs.statusNotificationCount(), value -> { prefs.statusNotificationCount((int) value); });
         LinearLayout links = group("status-links"); link(links, 0, "权限中心", "通知使用权与移动网络授权", "permissions"); link(links, 0, "悬浮栏风格", appearanceLabel(), "appearance");
@@ -988,7 +992,7 @@ public final class MainActivity extends Activity {
     @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] grants) { super.onRequestPermissionsResult(request, permissions, grants); if (CoverService.instance != null) CoverService.instance.permissionsChanged(); refreshStatus(); }
     private void refreshStatus() {
         if (statusLabel != null) { String state = !prefs.enabled() ? "已暂停 · 配置保留" : CoverService.instance == null ? "待授权：无障碍服务" : Displays.selected(this, prefs) == null ? "待选择目标外屏" : CoverService.status; if (!state.contentEquals(statusLabel.getText())) statusLabel.setText(state); View enabled = body.findViewWithTag("settings-enabled"); if (enabled != null) enabled.setContentDescription("开启 FlipAuto，" + state); }
-        if (route.equals("permissions")) for (Runnable update : List.copyOf(statusUpdates)) update.run();
+        if (route.equals("permissions") || route.equals("status")) for (Runnable update : List.copyOf(statusUpdates)) update.run();
     }
     private String displaySummary() { Display display = Displays.selected(this, prefs); return display == null ? "尚未选择可用外屏" : display.getName() + (display.getState() == Display.STATE_ON ? " · 已亮起" : " · 未亮起"); }
     private void chooseDisplay() {

@@ -214,6 +214,9 @@ public final class Prefs {
     void excludeDockApps(java.util.Set<String> set) { data.edit().putStringSet("exclude_dock_apps", set == null ? DEFAULT_EXCLUDED : new java.util.HashSet<>(set)).apply(); }
     public boolean statusItem(String item) { return data.getBoolean("status_" + item, true); }
 
+    /** 开 VPN 时改按网络类型统计流量（需要「使用情况访问」权限），避免隧道与底层接口重复计数。 */
+    public boolean preciseSpeed() { return data.getBoolean("status_speed_precise", false); }
+
     /** 状态栏通知图标最大显示数量，超出部分用三个点表示。默认 4，范围 2-8。 */
     public int statusNotificationCount() { return Math.max(2, Math.min(8, data.getInt("status_notification_count", 4))); }
     public void statusNotificationCount(int count) { data.edit().putInt("status_notification_count", Math.max(2, Math.min(8, count))).apply(); }
