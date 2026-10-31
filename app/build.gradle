@@ -12,7 +12,7 @@ android {
         applicationId 'com.flipauto'
         minSdk 33
         targetSdk 37
-        versionCode 57
+        versionCode 59
         versionName '6.0'
         testInstrumentationRunner 'com.flipauto.UiSmokeInstrumentation'
     }
