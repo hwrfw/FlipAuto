@@ -217,6 +217,10 @@ public final class Prefs {
     /** 开 VPN 时读取代理应用通知里的网速，避免系统总量把隧道流量算两遍。 */
     public boolean smartSpeed() { return data.getBoolean("status_speed_smart", true); }
 
+    /** 指定侦测网速的应用；为空表示自动识别代理类应用。 */
+    public java.util.Set<String> speedApps() { return new java.util.HashSet<>(data.getStringSet("speed_apps", java.util.Set.of())); }
+    public void speedApps(java.util.Set<String> set) { data.edit().putStringSet("speed_apps", set == null ? java.util.Set.of() : new java.util.HashSet<>(set)).apply(); }
+
     /** 状态栏通知图标最大显示数量，超出部分用三个点表示。默认 4，范围 2-8。 */
     public int statusNotificationCount() { return Math.max(2, Math.min(8, data.getInt("status_notification_count", 4))); }
     public void statusNotificationCount(int count) { data.edit().putInt("status_notification_count", Math.max(2, Math.min(8, count))).apply(); }

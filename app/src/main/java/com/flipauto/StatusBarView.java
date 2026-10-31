@@ -154,13 +154,17 @@ final class StatusBarView extends View {
      * 常驻通知里自己刷新的上下行速率；没有这样的通知时仍用系统总量，不会显示成 0K/s。
      */
     private void updateSpeed() {
-        if (vpnConnected && prefs.smartSpeed()) {
-            double notified = SpeedNotification.fromNotifications(CoverNotifications.snapshot(), System.currentTimeMillis());
-            if (notified >= 0) {
-                // 通知里的数字与系统总量不同源，切回总量时重建基线，避免算出跨口径的差值
-                speedMeter.reset();
-                speed = SpeedMeter.format(notified);
-                return;
+        if (prefs.smartSpeed()) {
+            java.util.Set<String> apps = prefs.speedApps();
+            // 用户指定了应用就按指定来，没指定时只在 VPN 连接期间自动识别
+            if (vpnConnected || !apps.isEmpty()) {
+                double notified = SpeedNotification.fromNotifications(CoverNotifications.snapshot(), System.currentTimeMillis(), apps);
+                if (notified >= 0) {
+                    // 通知里的数字与系统总量不同源，切回总量时重建基线，避免算出跨口径的差值
+                    speedMeter.reset();
+                    speed = SpeedMeter.format(notified);
+                    return;
+                }
             }
         }
         double rate = speedMeter.sample(systemTraffic(), SystemClock.elapsedRealtime());

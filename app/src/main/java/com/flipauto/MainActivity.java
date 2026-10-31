@@ -314,7 +314,7 @@ public final class MainActivity extends Activity {
             case "group_appearance" -> { // 状态栏与外观：状态栏、悬浮栏风格、面板背景
                 for (String key : new String[]{"status_enabled", "status_scale", "status_safe_left", "status_safe_right",
                         "status_preset", "status_notification_count", "battery_percent", "battery_percent_inside",
-                        "status_speed_smart", "chrome_style", "panel_blur", "ui_scale"}) editor.remove(key);
+                        "status_speed_smart", "speed_apps", "chrome_style", "panel_blur", "ui_scale"}) editor.remove(key);
                 for (String item : Prefs.STATUS_ITEMS) editor.remove("status_" + item);
             }
             case "group_apps" -> { // 应用与小组件：应用 Dock 与中心
@@ -390,6 +390,12 @@ public final class MainActivity extends Activity {
         for (String[] item : items) { Switch control = toggle(contents, item[1], item[2], "status_" + item[0], true); control.setOnCheckedChangeListener((button, checked) -> { if (bindingUI) return; prefs.data.edit().putBoolean("status_" + item[0], checked).apply(); SettingsUi.ValueRow row = body.findViewWithTag("status-preset"); row.value(choiceLabel(new String[]{"极简", "日常", "全部"}, new Object[]{"minimal", "daily", "full"}, prefs.statusPreset())); }); }
         LinearLayout speedOptions = group("speed-options");
         toggle(speedOptions, "VPN 智能网速", "开 VPN 时读取 Clash、v2rayNG 等应用通知里的速率，读不到时用系统统计", "status_speed_smart", true);
+        SettingsUi.ValueRow speedAppsRow = SettingsUi.valueRow(this, "侦测的应用", speedAppsLabel(), null);
+        speedAppsRow.setTag("speed-apps");
+        speedAppsRow.setBackground(Ui.ripple(this, android.graphics.Color.TRANSPARENT, 0));
+        speedAppsRow.setOnClickListener(v -> chooseSpeedApps(speedAppsRow));
+        speedOptions.addView(speedAppsRow);
+        note("留空时自动识别代理类应用；指定后只读取所选应用的通知，通知里的上下行速率会自动识别。");
         LinearLayout battery = group("battery-options"); toggle(battery, "常驻电量百分比", "状态栏与控制中心始终显示电量百分比", "battery_percent", false); toggle(battery, "电源内显示电量", "在电池图标内部显示百分比数字", "battery_percent_inside", false);
         LinearLayout notifOpts = group("notification-options"); choice(notifOpts, "通知图标数量", "status-notif-count", new String[]{"2 个", "3 个", "4 个", "5 个", "6 个", "7 个", "8 个"}, new Object[]{2, 3, 4, 5, 6, 7, 8}, () -> prefs.statusNotificationCount(), value -> { prefs.statusNotificationCount((int) value); });
         LinearLayout links = group("status-links"); link(links, 0, "权限中心", "通知使用权与移动网络授权", "permissions"); link(links, 0, "悬浮栏风格", appearanceLabel(), "appearance");
@@ -728,6 +734,60 @@ public final class MainActivity extends Activity {
             row.value(total == 0 ? "未设置" : total + " 个应用");
             dismissSheet();
         }));
+    }
+
+    private String speedAppsLabel() {
+        java.util.Set<String> apps = prefs.speedApps();
+        if (apps.isEmpty()) return "自动识别";
+        if (apps.size() == 1) return apps.iterator().next();
+        return apps.size() + " 个应用";
+    }
+    /** 选择侦测网速的应用：留空表示自动识别代理类应用，选中后只读这些应用的通知。 */
+    private void chooseSpeedApps(SettingsUi.ValueRow row) {
+        DetailSheet modal = openSheet("侦测网速的应用");
+        EditText input = search("搜索应用名称或包名", "speed-app-search");
+        modal.content.addView(input);
+        TextView hint = SettingsUi.text(this, "只读取所选应用的通知；留空则自动识别代理类应用。", 13, SettingsUi.MUTED);
+        hint.setPadding(Ui.dp(this, 16), 0, Ui.dp(this, 16), Ui.dp(this, 8));
+        modal.content.addView(hint);
+        LinearLayout list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); modal.content.addView(list);
+        PackageManager pm = getPackageManager();
+        List<AppItem> items = new ArrayList<>();
+        for (android.content.pm.ApplicationInfo ai : pm.getInstalledApplications(PackageManager.GET_META_DATA)) {
+            String pkg = ai.packageName;
+            if (pkg.equals(getPackageName())) continue;
+            String label; try { label = ai.loadLabel(pm).toString(); } catch (RuntimeException e) { label = pkg; }
+            Drawable icon; try { icon = ai.loadIcon(pm); } catch (RuntimeException e) { icon = null; }
+            items.add(new AppItem(label, pkg, icon));
+        }
+        java.util.Set<String> selected = new java.util.HashSet<>(prefs.speedApps());
+        Runnable[] update = new Runnable[1];
+        update[0] = () -> {
+            list.removeAllViews();
+            String q = input.getText() == null ? "" : input.getText().toString().trim().toLowerCase();
+            List<AppItem> ordered = new ArrayList<>(items);
+            ordered.sort((a, b) -> { boolean ca = selected.contains(a.pkg), cb = selected.contains(b.pkg); if (ca != cb) return ca ? -1 : 1; return a.label.compareToIgnoreCase(b.label); });
+            for (AppItem it : ordered) {
+                if (!q.isEmpty() && !it.label.toLowerCase().contains(q) && !it.pkg.toLowerCase().contains(q)) continue;
+                LinearLayout appRow = new LinearLayout(this);
+                appRow.setOrientation(LinearLayout.HORIZONTAL); appRow.setGravity(Gravity.CENTER_VERTICAL);
+                int pad = Ui.dp(this, 6); appRow.setPadding(pad, Ui.dp(this, 10), pad, Ui.dp(this, 10));
+                appRow.setBackground(Ui.ripple(this, android.graphics.Color.TRANSPARENT, 0));
+                ImageView iv = new ImageView(this); if (it.icon != null) iv.setImageDrawable(it.icon);
+                int iconSize = Ui.dp(this, 26); LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(iconSize, iconSize); ip.rightMargin = Ui.dp(this, 10);
+                appRow.addView(iv, ip);
+                LinearLayout texts = new LinearLayout(this); texts.setOrientation(LinearLayout.VERTICAL);
+                TextView t = new TextView(this); t.setText(it.label); t.setTextColor(SettingsUi.TEXT); t.setTextSize(14); t.setSingleLine(); t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                TextView s = new TextView(this); s.setText(it.pkg); s.setTextColor(SettingsUi.MUTED); s.setTextSize(11); s.setSingleLine(); s.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                texts.addView(t); texts.addView(s);
+                appRow.addView(texts, new LinearLayout.LayoutParams(0, -2, 1));
+                Switch sw = SettingsUi.toggle(appRow, "侦测", "", selected.contains(it.pkg), value -> { if (value) selected.add(it.pkg); else selected.remove(it.pkg); prefs.speedApps(selected); update[0].run(); });
+                sw.setTag("speed-app-" + it.pkg);
+                list.addView(appRow);
+            }
+        };
+        watch(input, update[0]); update[0].run();
+        modal.content.addView(SettingsUi.button(this, "完成", () -> { row.value(speedAppsLabel()); dismissSheet(); }));
     }
 
     private void chooseTargetApp(SettingsUi.ValueRow row) {

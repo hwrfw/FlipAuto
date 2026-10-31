@@ -60,21 +60,25 @@ final class SpeedNotification {
     /**
      * 从当前通知里找一条可信的实时速率。
      *
-     * <p>优先采用代理应用的常驻通知；其他应用的通知只有在没有代理通知时才作为兜底，
-     * 避免把下载工具的「1.2MB/s」当成 VPN 速率。超过 15 秒没更新的通知视为过期。
-     *
+     * @param packages 用户指定的应用包名；非空时只看这些应用，为空则自动识别代理类应用
      * @return 上下行合计（字节/秒）；没有可用通知时返回 -1
      */
-    static double fromNotifications(List<StatusBarNotification> items, long now) {
+    static double fromNotifications(List<StatusBarNotification> items, long now, java.util.Set<String> packages) {
+        boolean explicit = packages != null && !packages.isEmpty();
         double fallback = -1;
         for (StatusBarNotification item : items) {
             if (now - item.getPostTime() > FRESH_MS) continue;
             double rate = parse(texts(item));
             if (rate < 0) continue;
-            if (isVpnApp(item.getPackageName())) return rate;
-            if (fallback < 0) fallback = rate;
+            if (explicit) {
+                if (packages.contains(item.getPackageName())) return rate;
+            } else if (isVpnApp(item.getPackageName())) {
+                return rate;
+            } else if (fallback < 0) {
+                fallback = rate;
+            }
         }
-        return fallback;
+        return explicit ? -1 : fallback;
     }
 
     /**
