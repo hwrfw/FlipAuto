@@ -1,0 +1,48 @@
+plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.plugin.compose' }
+
+// Keep generated resources/classes out of cloud-sync conflict copies. The suffix is
+// a normal directory on other platforms, and no machine-specific path is needed.
+layout.buildDirectory.set(rootProject.layout.projectDirectory.dir('Cache/build-output.nosync/app'))
+
+android {
+    namespace 'com.flipauto'
+    compileSdk 37
+    buildToolsVersion '36.0.0'
+    defaultConfig {
+        applicationId 'com.flipauto'
+        minSdk 33
+        targetSdk 37
+        versionCode 57
+        versionName '6.0'
+        testInstrumentationRunner 'com.flipauto.UiSmokeInstrumentation'
+    }
+    buildFeatures { aidl true; buildConfig true; compose true }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    buildTypes {
+        debug { applicationIdSuffix '.debug' }
+        release { minifyEnabled false }
+    }
+    testOptions { unitTests.returnDefaultValues = true }
+}
+
+kotlin { compilerOptions { jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17 } }
+
+dependencies {
+    implementation 'io.github.kyant0:backdrop:2.0.1'
+    implementation 'io.github.kyant0:shapes:1.2.1'
+    implementation 'androidx.compose.foundation:foundation:1.12.0'
+    implementation 'androidx.compose.ui:ui:1.12.0'
+    implementation 'androidx.compose.animation:animation-core:1.12.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
+    implementation 'androidx.lifecycle:lifecycle-runtime:2.9.4'
+    implementation 'androidx.savedstate:savedstate:1.3.3'
+    compileOnly 'androidx.annotation:annotation:1.3.0'
+    implementation 'dev.rikka.shizuku:api:13.1.5'
+    implementation 'dev.rikka.shizuku:provider:13.1.5'
+    implementation 'me.majiajie:tinypinyin:2.0.3'
+    implementation 'com.google.zxing:core:3.5.3'
+    testImplementation 'junit:junit:4.13.2'
+}

@@ -1,0 +1,109 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.NFC" />
+    <uses-feature android:name="android.hardware.nfc" android:required="false" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Background system text Toasts require notifications to be allowed by the user. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Official host declaration; actual binding uses ACTION_APPWIDGET_BIND user consent. -->
+    <uses-permission android:name="android.permission.BIND_APPWIDGET" tools:ignore="ProtectedPermissions" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- FlipAuto 整合：悬浮气泡 / 开机自启 / 免 Shizuku 系统开关 -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <queries>
+        <intent><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent>
+        <intent><action android:name="android.service.quicksettings.action.QS_TILE" /></intent>
+        <intent><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent>
+    </queries>
+    <application android:name=".CoverApp" android:label="FlipAuto" android:theme="@style/AppTheme"
+        android:icon="@drawable/ic_launcher_flipauto" android:roundIcon="@drawable/ic_launcher_flipauto" android:allowBackup="false" android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true">
+        <activity android:name=".MainActivity" android:exported="true" android:resizeableActivity="true">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity>
+        <activity android:name=".SystemOutputActivity" android:exported="false" android:resizeableActivity="true" />
+        <activity android:name=".LauncherWidgetActivity" android:exported="false" android:resizeableActivity="true" android:excludeFromRecents="true" android:taskAffinity="" android:configChanges="orientation|screenSize|smallestScreenSize" android:theme="@style/LauncherWidgetEntryTheme" />
+        <receiver android:name=".LauncherWidgetProvider" android:exported="false" android:label="@string/launcher_widget_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/launcher_widget" />
+            <meta-data android:name="com.samsung.android.appwidget.provider" android:resource="@xml/samsung_native_widget" />
+        </receiver>
+        <activity android:name=".NativeWidgetActivity" android:exported="true" android:resizeableActivity="true" android:label="@string/native_widget_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" /></intent-filter>
+        </activity>
+        <receiver android:name=".NativeWidgetProvider" android:exported="false" android:label="@string/native_widget_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/native_widget" />
+            <meta-data android:name="com.samsung.android.appwidget.provider" android:resource="@xml/samsung_native_widget" />
+        </receiver>
+        <receiver android:name=".NativeWidgetProvider$Slot2" android:exported="false" android:label="@string/native_widget_slot_2">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/native_widget" />
+            <meta-data android:name="com.samsung.android.appwidget.provider" android:resource="@xml/samsung_native_widget" />
+        </receiver>
+        <receiver android:name=".NativeWidgetProvider$Slot3" android:exported="false" android:label="@string/native_widget_slot_3">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/native_widget" />
+            <meta-data android:name="com.samsung.android.appwidget.provider" android:resource="@xml/samsung_native_widget" />
+        </receiver>
+        <receiver android:name=".NativeWidgetProvider$Slot4" android:exported="false" android:label="@string/native_widget_slot_4">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/native_widget" />
+            <meta-data android:name="com.samsung.android.appwidget.provider" android:resource="@xml/samsung_native_widget" />
+        </receiver>
+        <receiver android:name=".NativeWidgetProvider$Slot5" android:exported="false" android:label="@string/native_widget_slot_5">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/native_widget" />
+            <meta-data android:name="com.samsung.android.appwidget.provider" android:resource="@xml/samsung_native_widget" />
+        </receiver>
+        <receiver android:name=".NativeWidgetProvider$Slot6" android:exported="false" android:label="@string/native_widget_slot_6">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/native_widget" />
+            <meta-data android:name="com.samsung.android.appwidget.provider" android:resource="@xml/samsung_native_widget" />
+        </receiver>
+        <service android:name=".CoverService" android:label="FlipAuto" android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/accessibility_service" />
+        </service>
+        <service android:name=".CoverNotifications" android:label="外屏通知" android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>
+        </service>
+        <provider android:name="rikka.shizuku.ShizukuProvider" android:authorities="${applicationId}.shizuku"
+            android:enabled="true" android:exported="true" android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+        <meta-data android:name="moe.shizuku.client.V3_SUPPORT" android:value="true" />
+        <!-- FlipAuto 整合：开屏引导（zip 设计语言） -->
+        <activity android:name=".OnboardingActivity" android:exported="false" android:theme="@style/AppTheme" />
+        <activity android:name=".PermissionActivity" android:exported="false" android:theme="@style/AppTheme" />
+        <activity android:name=".LauncherSetupActivity" android:exported="false" android:theme="@style/AppTheme" />
+        <!-- FlipAuto 整合：悬浮气泡前台服务 -->
+        <service android:name=".FlipAutoService" android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="floating bubble overlay for external display quick access" />
+        </service>
+        <!-- FlipAuto 整合：开机自启 -->
+        <receiver android:name=".BootReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

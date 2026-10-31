@@ -1,0 +1,41 @@
+<resources>
+    <!-- 开屏引导（FlipAuto 设计语言） -->
+    <string name="language_select_title">选择语言</string>
+    <string name="language_select_chinese">中文</string>
+    <string name="language_select_english">English</string>
+    <string name="language_select_hint">请选择您的语言</string>
+
+    <string name="permission_title">权限确认</string>
+    <string name="permission_desc">请逐一授权以下权限，全部开启后才能使用本应用</string>
+    <string name="permission_overlay">悬浮窗权限</string>
+    <string name="permission_overlay_granted">已授权</string>
+    <string name="permission_overlay_denied">未授权</string>
+    <string name="permission_accessibility">无障碍服务</string>
+    <string name="permission_accessibility_granted">已授权</string>
+    <string name="permission_accessibility_denied">未授权</string>
+    <string name="permission_battery">忽略电池优化</string>
+    <string name="permission_battery_granted">已授权</string>
+    <string name="permission_battery_denied">未授权</string>
+    <string name="permission_notification">通知监听权限</string>
+    <string name="permission_notification_granted">已授权</string>
+    <string name="permission_notification_denied">未授权</string>
+    <string name="permission_app_list">读取应用列表</string>
+    <string name="permission_app_list_granted">已授权</string>
+    <string name="permission_app_list_denied">未授权</string>
+    <string name="permission_grant">去授权</string>
+    <string name="permission_enter">进入应用</string>
+    <string name="permission_enter_ok">进入应用 ✅</string>
+    <string name="permission_enter_pending">请先完成所有授权</string>
+    <string name="permission_all_granted_hint">授权后“进入应用”按钮将自动启用</string>
+    <string name="launcher_setup_title">外屏启动器与显示适配</string>
+    <string name="launcher_setup_desc">选择外屏默认启动器（同时作为 Home 键与自动启动的目标）；下方显示密度为系统读取值，界面缩放已按 350 基准自动换算。</string>
+    <string name="launcher_setup_dpi">系统显示密度</string>
+    <string name="launcher_setup_pick">第三方启动器</string>
+    <string name="launcher_setup_finish">完成，进入应用</string>
+    <string name="launcher_setup_skip">暂时不设置</string>
+    <string name="launcher_setup_hint">两项都可以在设置里随时修改；缩放只影响本应用界面，不会改动系统显示设置。</string>
+    <string name="launcher_setup_none">未找到第三方启动器，可稍后在设置里指定</string>
+    <string name="launcher_setup_calibrated">读取到密度 %1$d dpi，界面缩放已设为 %2$d%%</string>
+    <string name="launcher_setup_uncalibrated">未能读取显示密度，沿用默认缩放 100%%</string>
+    <string name="launcher_setup_dpi_fallback">读取到内屏密度 %1$d dpi（外屏暂不可用），界面缩放已设为 %2$d%%</string>
+</resources>

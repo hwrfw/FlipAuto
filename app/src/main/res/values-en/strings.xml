@@ -1,0 +1,41 @@
+<resources>
+    <!-- Onboarding (FlipAuto design language) -->
+    <string name="language_select_title">Choose Language</string>
+    <string name="language_select_chinese">中文</string>
+    <string name="language_select_english">English</string>
+    <string name="language_select_hint">Please select your language</string>
+
+    <string name="permission_title">Permission Confirmation</string>
+    <string name="permission_desc">Please grant all of the following permissions to use the app</string>
+    <string name="permission_overlay">Display over other apps</string>
+    <string name="permission_overlay_granted">Granted</string>
+    <string name="permission_overlay_denied">Not granted</string>
+    <string name="permission_accessibility">Accessibility service</string>
+    <string name="permission_accessibility_granted">Granted</string>
+    <string name="permission_accessibility_denied">Not granted</string>
+    <string name="permission_battery">Ignore battery optimization</string>
+    <string name="permission_battery_granted">Granted</string>
+    <string name="permission_battery_denied">Not granted</string>
+    <string name="permission_notification">Notification access</string>
+    <string name="permission_notification_granted">Granted</string>
+    <string name="permission_notification_denied">Not granted</string>
+    <string name="permission_app_list">App list access</string>
+    <string name="permission_app_list_granted">Granted</string>
+    <string name="permission_app_list_denied">Not granted</string>
+    <string name="permission_grant">Grant</string>
+    <string name="permission_enter">Enter App</string>
+    <string name="permission_enter_ok">Enter App ✅</string>
+    <string name="permission_enter_pending">Please finish all permissions first</string>
+    <string name="permission_all_granted_hint">The "Enter" button enables automatically once granted</string>
+    <string name="launcher_setup_title">Cover launcher and display fit</string>
+    <string name="launcher_setup_desc">Pick the default cover launcher (also the Home key and auto-launch target). The density below is read from the system; UI scale is derived from the 350 dpi baseline.</string>
+    <string name="launcher_setup_dpi">System density</string>
+    <string name="launcher_setup_pick">Third-party launchers</string>
+    <string name="launcher_setup_finish">Finish and open</string>
+    <string name="launcher_setup_skip">Skip for now</string>
+    <string name="launcher_setup_hint">Both can be changed later in settings. Scaling affects only this app, never system display settings.</string>
+    <string name="launcher_setup_none">No third-party launcher found; you can pick one later in settings</string>
+    <string name="launcher_setup_calibrated">Read %1$d dpi, UI scale set to %2$d%%</string>
+    <string name="launcher_setup_uncalibrated">Density unavailable, keeping the default 100%%</string>
+    <string name="launcher_setup_dpi_fallback">Read inner screen %1$d dpi (cover unavailable), UI scale set to %2$d%%</string>
+</resources>
