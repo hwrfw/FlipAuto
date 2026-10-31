@@ -384,7 +384,7 @@ public final class MainActivity extends Activity {
             {"nfc", "NFC", "NFC 开启时显示"},
             {"hotspot", "移动热点", "热点开启时显示"},
             {"gps", "GPS定位", "定位开启时显示"},
-            {"speed", "实时网速", "当前网络的实时收发速率，每 2 秒刷新"},
+            {"speed", "实时网速", "系统统计的实时收发速率，每 2 秒刷新"},
             {"cellular", "移动网络", "最多双卡，需要电话状态权限"}
         };
         for (String[] item : items) { Switch control = toggle(contents, item[1], item[2], "status_" + item[0], true); control.setOnCheckedChangeListener((button, checked) -> { if (bindingUI) return; prefs.data.edit().putBoolean("status_" + item[0], checked).apply(); SettingsUi.ValueRow row = body.findViewWithTag("status-preset"); row.value(choiceLabel(new String[]{"极简", "日常", "全部"}, new Object[]{"minimal", "daily", "full"}, prefs.statusPreset())); }); }

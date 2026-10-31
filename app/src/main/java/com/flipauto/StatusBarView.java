@@ -61,8 +61,6 @@ final class StatusBarView extends View {
     private String speed = "";
     private String clock = "";
     private final SpeedMeter speedMeter = new SpeedMeter();
-    /** 各接口上一轮的累计计数，用于逐接口求增量；接口出现或消失都不会造成跳变。 */
-    private final java.util.Map<String, long[]> ifaceCounters = new java.util.HashMap<>();
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
@@ -116,13 +114,11 @@ final class StatusBarView extends View {
             updateClock();
             boolean showSpeed = prefs.statusItem("speed");
             if (showSpeed) {
-                collectTraffic();
-                double rate = speedMeter.sample(SystemClock.elapsedRealtime());
+                double rate = speedMeter.sample(trafficTotal(), SystemClock.elapsedRealtime());
                 speed = rate < 0 ? "" : SpeedMeter.format(rate);
             } else if (!speed.isEmpty()) {
                 speed = "";
                 speedMeter.reset();
-                ifaceCounters.clear();
             }
             invalidate(); main.postDelayed(this, showSpeed ? 2000 : 60000 - System.currentTimeMillis() % 60000);
         }
@@ -152,52 +148,17 @@ final class StatusBarView extends View {
     private int foreground() { return panelMode ? Ui.TEXT : Ui.chromeColor(prefs); }
     private void applyAppearance() { setBackgroundColor(!panelMode && prefs.chromeStyle().equals("black") ? Ui.BACKGROUND : android.graphics.Color.TRANSPARENT); setLayerType(LAYER_TYPE_SOFTWARE, null); }
     /**
-     * 扫描各网络接口的累计计数，把本轮增量交给采样器。
+     * 系统统计的累计收发字节数（全局，含移动数据与 WiFi）。
      *
-     * <p>逐接口记录基线：接口新出现或消失只影响它自己的增量，不会像「全局累计值相减」
-     * 那样在网络切换时算出几 GB/s 的假读数。
+     * <p>只读总量：Android 10 起按接口名取值的 {@code getRxBytes(String)} 一律返回
+     * 不支持，逐接口统计拿不到数据，只能退回总量。开 VPN 时同一份流量会先在隧道接口、
+     * 再在底层接口各计一次，读数约为实际的两倍。
      *
-     * <p>开 VPN 时同一份流量先经过 VPN 接口、再由底层接口发出，两个接口相加会翻倍，
-     * 因此底层接口与 VPN 接口只取较大的一个：全局代理取底层（含加密开销），
-     * 分应用代理取两者中更大的那个，VPN 接口计数缺失时也不会漏掉流量。
+     * @return 累计字节数；系统未提供统计时返回 -1
      */
-    private void collectTraffic() {
-        String vpn = vpnInterface();
-        long physical = 0, tunnel = 0;
-        java.util.Set<String> seen = new java.util.HashSet<>();
-        try {
-            java.util.Enumeration<java.net.NetworkInterface> all = java.net.NetworkInterface.getNetworkInterfaces();
-            while (all != null && all.hasMoreElements()) {
-                java.net.NetworkInterface nif = all.nextElement();
-                String name = nif.getName();
-                if (name == null || "lo".equals(name)) continue;
-                long rx = TrafficStats.getRxBytes(name), tx = TrafficStats.getTxBytes(name);
-                if (rx < 0 || tx < 0) continue;
-                seen.add(name);
-                long[] previous = ifaceCounters.put(name, new long[]{rx, tx});
-                if (previous == null) continue;
-                long delta = (rx - previous[0]) + (tx - previous[1]);
-                if (delta <= 0) continue;
-                if (name.equals(vpn)) tunnel += delta; else physical += delta;
-            }
-        } catch (Exception ignored) { }
-        if (!seen.isEmpty()) ifaceCounters.keySet().retainAll(seen);
-        speedMeter.add(Math.max(physical, tunnel));
-    }
-
-    /** 当前活动网络是 VPN 时返回其接口名，否则返回 null。 */
-    private String vpnInterface() {
-        if (connectivity == null) return null;
-        try {
-            Network active = connectivity.getActiveNetwork();
-            if (active == null) return null;
-            NetworkCapabilities capabilities = connectivity.getNetworkCapabilities(active);
-            if (capabilities == null || !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return null;
-            android.net.LinkProperties properties = connectivity.getLinkProperties(active);
-            return properties == null ? null : properties.getInterfaceName();
-        } catch (RuntimeException e) {
-            return null;
-        }
+    private long trafficTotal() {
+        long rx = TrafficStats.getTotalRxBytes(), tx = TrafficStats.getTotalTxBytes();
+        return rx < 0 || tx < 0 ? -1 : rx + tx;
     }
     private void updateClock() { clock = android.text.format.DateFormat.getTimeFormat(getContext()).format(new java.util.Date()); }
     @Override protected void onAttachedToWindow() {

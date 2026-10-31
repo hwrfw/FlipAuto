@@ -8,64 +8,54 @@ public class SpeedMeterTest {
 
     @Test public void firstSampleOnlyRecordsBaseline() {
         SpeedMeter meter = new SpeedMeter();
-        meter.add(1000);
-        assertEquals(-1d, meter.sample(0), 0);
+        assertEquals(-1d, meter.sample(1000, 0), 0);
         assertEquals(-1d, meter.rate(), 0);
     }
 
     @Test public void rateUsesActualElapsedTime() {
         SpeedMeter meter = new SpeedMeter();
-        meter.sample(0);
-        meter.add((long) (2 * MB));
-        // 2000ms 内 2MB，即 1MB/s
-        assertEquals(MB, meter.sample(2000), 1);
+        meter.sample(0, 0);
+        // 2000ms 内累计增加 2MB，即 1MB/s
+        assertEquals(MB, meter.sample((long) (2 * MB), 2000), 1);
     }
 
     @Test public void irregularIntervalStillCorrect() {
         SpeedMeter meter = new SpeedMeter();
-        meter.sample(100);
+        meter.sample(100, 100);
         // 实际间隔 2500ms（定时器抖动），500KB → 200KB/s
-        meter.add(500 * (long) KB);
-        assertEquals(200 * KB, meter.sample(2600), 1);
+        assertEquals(200 * KB, meter.sample(100 + (long) (500 * KB), 2600), 1);
     }
 
     @Test public void tooShortIntervalIsDiscarded() {
         SpeedMeter meter = new SpeedMeter();
-        meter.sample(0);
-        meter.add((long) MB);
-        assertEquals(-1d, meter.sample(100), 0);
+        meter.sample(0, 0);
+        assertEquals(-1d, meter.sample((long) MB, 100), 0);
         // 丢弃后基线已推进到 (1MB, 100ms)，下一次按真实间隔计算
-        meter.add((long) MB);
-        assertEquals(MB * 1000d / 1900d, meter.sample(2000), 1);
+        assertEquals(MB * 1000d / 1900d, meter.sample((long) (2 * MB), 2000), 1);
     }
 
     @Test public void longGapIsDiscardedInsteadOfAveraged() {
         SpeedMeter meter = new SpeedMeter();
-        meter.sample(0);
+        meter.sample(0, 0);
         // 挂起 10 分钟后恢复：若按平均计算会把速率算成极低值
-        meter.add((long) (600 * MB));
-        assertEquals(-1d, meter.sample(600_000), 0);
-        meter.add((long) (2 * MB));
-        assertEquals(MB, meter.sample(602_000), 1);
+        assertEquals(-1d, meter.sample((long) (600 * MB), 600_000), 0);
+        assertEquals(MB, meter.sample((long) (602 * MB), 602_000), 1);
     }
 
-    @Test public void negativeDeltaIsIgnored() {
+    @Test public void counterResetRebuildsBaseline() {
         SpeedMeter meter = new SpeedMeter();
-        meter.sample(0);
-        meter.add(-1);
-        meter.add(0);
-        meter.add((long) MB);
-        assertEquals(MB / 2, meter.sample(2000), 1);
+        meter.sample((long) (10 * MB), 0);
+        // 累计值回落说明统计被重置，不能算出负速率
+        assertEquals(-1d, meter.sample(1024, 2000), 0);
+        assertEquals(MB, meter.sample(1024 + (long) (2 * MB), 4000), 1);
     }
 
     @Test public void resetClearsBaseline() {
         SpeedMeter meter = new SpeedMeter();
-        meter.sample(0);
-        meter.add((long) (2 * MB));
-        meter.sample(2000);
+        meter.sample(0, 0);
+        meter.sample((long) (2 * MB), 2000);
         meter.reset();
-        meter.add((long) (2 * MB));
-        assertEquals(-1d, meter.sample(4000), 0);
+        assertEquals(-1d, meter.sample((long) (4 * MB), 4000), 0);
     }
 
     @Test public void formatUsesBinaryUnits() {
@@ -85,9 +75,8 @@ public class SpeedMeterTest {
 
     @Test public void idleTrafficReadsZero() {
         SpeedMeter meter = new SpeedMeter();
-        meter.sample(0);
+        meter.sample(0, 0);
         // 2 秒内只有 200 字节的心跳流量，按 0 显示而不是 1K/s
-        meter.add(200);
-        assertEquals("0K/s", SpeedMeter.format(meter.sample(2000)));
+        assertEquals("0K/s", SpeedMeter.format(meter.sample(200, 2000)));
     }
 }

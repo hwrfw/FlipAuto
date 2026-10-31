@@ -5,8 +5,8 @@ import java.util.Locale;
 /**
  * 实时网速采样。
  *
- * <p>调用方每轮把各网络接口的字节增量累加进来，速率由累计增量除以实际间隔得到，
- * 因此不受定时器抖动影响。间隔过短（重复触发）或过长（界面不可见、设备休眠）时
+ * <p>调用方每轮把系统统计的累计收发字节数传进来，速率由相邻两次读数的差值除以实际间隔
+ * 得到，因此不受定时器抖动影响。间隔过短（重复触发）或过长（界面不可见、设备休眠）时
  * 丢弃本次样本，避免把几分钟的流量平均成「0K/s」。
  *
  * <p>仅负责数值与文本，不访问系统接口，便于单元测试。
@@ -19,19 +19,13 @@ final class SpeedMeter {
     /** 低于该值按 0 处理，避免空闲时显示 0K/s 与 1K/s 之间跳动。 */
     static final double IDLE_BYTES_PER_SECOND = 512;
 
-    private long total;
-    private long lastTotal = -1;
+    private long lastBytes = -1;
     private long lastTime;
     private double rate = -1;
 
-    /** 累加一轮采样中各接口的字节增量；负数（接口重置或计数不可用）忽略。 */
-    void add(long bytes) {
-        if (bytes > 0) total += bytes;
-    }
-
     /** 清空基线，下一次采样只记录不计算。 */
     void reset() {
-        lastTotal = -1;
+        lastBytes = -1;
         lastTime = 0;
         rate = -1;
     }
@@ -39,20 +33,21 @@ final class SpeedMeter {
     /**
      * 采样一次。
      *
-     * @param nowMs 单调时钟毫秒值
+     * @param totalBytes 系统累计收发字节数（单调递增）
+     * @param nowMs      单调时钟毫秒值
      * @return 速率（字节/秒）；返回 -1 表示本次没有有效读数
      */
-    double sample(long nowMs) {
+    double sample(long totalBytes, long nowMs) {
         long elapsed = nowMs - lastTime;
-        if (lastTotal < 0 || elapsed < MIN_INTERVAL_MS || elapsed > MAX_INTERVAL_MS) {
-            lastTotal = total;
-            lastTime = nowMs;
+        long previous = lastBytes;
+        lastBytes = totalBytes;
+        lastTime = nowMs;
+        // 首次采样、间隔异常、计数器回绕（设备重启或统计被重置）都只重建基线
+        if (previous < 0 || totalBytes < previous || elapsed < MIN_INTERVAL_MS || elapsed > MAX_INTERVAL_MS) {
             rate = -1;
             return -1;
         }
-        rate = (total - lastTotal) * 1000d / elapsed;
-        lastTotal = total;
-        lastTime = nowMs;
+        rate = (totalBytes - previous) * 1000d / elapsed;
         return rate;
     }
 
