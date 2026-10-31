@@ -61,11 +61,6 @@ final class StatusBarView extends View {
     private String speed = "";
     private String clock = "";
     private final SpeedMeter speedMeter = new SpeedMeter();
-    /** 按网络类型统计的采样器，仅在开 VPN 且启用「VPN 精确网速」时参与计算。 */
-    private final SpeedMeter preciseMeter = new SpeedMeter();
-    private android.app.usage.NetworkStatsManager networkStats;
-    /** 精确统计的区间起点（毫秒时间戳），0 表示尚未建立。 */
-    private long preciseAnchor;
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
@@ -123,7 +118,6 @@ final class StatusBarView extends View {
             } else if (!speed.isEmpty()) {
                 speed = "";
                 speedMeter.reset();
-                preciseMeter.reset();
             }
             invalidate(); main.postDelayed(this, showSpeed ? 2000 : 60000 - System.currentTimeMillis() % 60000);
         }
@@ -156,17 +150,20 @@ final class StatusBarView extends View {
      * 刷新状态栏网速文本。
      *
      * <p>默认用系统累计收发总量算速率，任何网络下都有读数。开 VPN 时同一份流量会在
-     * 隧道接口与底层接口各计一次，因此当用户启用「VPN 精确网速」并授予使用情况访问后，
-     * 改用按网络类型汇总的统计——它只计一次。该统计的粒度比系统总量粗，可能连续多轮
-     * 不动，所以只在它有非零读数时采用，其余情况仍用总量，不会把网速显示成 0K/s。
+     * 隧道接口与底层接口各计一次，读数约为实际的两倍，因此 VPN 连接期间优先采用代理应用
+     * 常驻通知里自己刷新的上下行速率；没有这样的通知时仍用系统总量，不会显示成 0K/s。
      */
     private void updateSpeed() {
-        long now = SystemClock.elapsedRealtime();
-        double rate = speedMeter.sample(systemTraffic(), now);
-        if (vpnConnected && prefs.preciseSpeed() && UsageAccess.granted(getContext())) {
-            double precise = preciseMeter.sample(preciseTraffic(), now);
-            if (precise > 0) rate = precise;
+        if (vpnConnected && prefs.smartSpeed()) {
+            double notified = SpeedNotification.fromNotifications(CoverNotifications.snapshot(), System.currentTimeMillis());
+            if (notified >= 0) {
+                // 通知里的数字与系统总量不同源，切回总量时重建基线，避免算出跨口径的差值
+                speedMeter.reset();
+                speed = SpeedMeter.format(notified);
+                return;
+            }
         }
+        double rate = speedMeter.sample(systemTraffic(), SystemClock.elapsedRealtime());
         speed = rate < 0 ? "" : SpeedMeter.format(rate);
     }
 
@@ -181,34 +178,6 @@ final class StatusBarView extends View {
     private long systemTraffic() {
         long rx = TrafficStats.getTotalRxBytes(), tx = TrafficStats.getTotalTxBytes();
         return rx < 0 || tx < 0 ? -1 : rx + tx;
-    }
-
-    /**
-     * 按网络类型汇总的累计收发字节数，隧道流量只计一次。
-     *
-     * <p>统计区间取固定起点到现在，因此返回值只增不减，可直接交给采样器求差。
-     * 起点每 6 小时重建一次，避免区间无限拉长后每次查询都要聚合大量历史数据。
-     *
-     * @return 累计字节数；未授权或查询失败时返回 -1
-     */
-    private long preciseTraffic() {
-        if (networkStats == null) return -1;
-        long now = System.currentTimeMillis();
-        if (preciseAnchor == 0 || now - preciseAnchor > 6 * 3600_000L) {
-            preciseAnchor = now;
-            preciseMeter.reset();
-            return -1;
-        }
-        long sum = 0;
-        boolean any = false;
-        for (int type : new int[]{ConnectivityManager.TYPE_WIFI, ConnectivityManager.TYPE_MOBILE, ConnectivityManager.TYPE_ETHERNET}) {
-            try {
-                android.app.usage.NetworkStats.Bucket bucket = networkStats.querySummaryForDevice(type, null, preciseAnchor, now);
-                sum += bucket.getRxBytes() + bucket.getTxBytes();
-                any = true;
-            } catch (Exception ignored) { }
-        }
-        return any ? sum : -1;
     }
     private void updateClock() { clock = android.text.format.DateFormat.getTimeFormat(getContext()).format(new java.util.Date()); }
     @Override protected void onAttachedToWindow() {
@@ -226,7 +195,6 @@ final class StatusBarView extends View {
         filter.addAction(android.location.LocationManager.MODE_CHANGED_ACTION);
         if (Build.VERSION.SDK_INT >= 33) getContext().registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED); else getContext().registerReceiver(receiver, filter);
         receiverRegistered = true; connectivity = getContext().getSystemService(ConnectivityManager.class);
-        networkStats = getContext().getSystemService(android.app.usage.NetworkStatsManager.class);
         wifiManager = (android.net.wifi.WifiManager) getContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         try { connectivity.registerDefaultNetworkCallback(networks, main); networkRegistered = true; } catch (RuntimeException ignored) { }
         refreshNetwork(); refreshNotifications(); refreshCells(); refreshMiscStates();
@@ -296,8 +264,8 @@ final class StatusBarView extends View {
     }
     private void refreshNetwork() {
         if (!running) return;
-        try { NetworkCapabilities capabilities = connectivity.getNetworkCapabilities(connectivity.getActiveNetwork()); wifi = capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI); boolean wasVpn = vpnConnected; vpnConnected = capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN); if (wasVpn != vpnConnected) { preciseAnchor = 0; preciseMeter.reset(); } }
-        catch (RuntimeException ignored) { wifi = false; vpnConnected = false; preciseAnchor = 0; preciseMeter.reset(); }
+        try { NetworkCapabilities capabilities = connectivity.getNetworkCapabilities(connectivity.getActiveNetwork()); wifi = capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI); vpnConnected = capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN); }
+        catch (RuntimeException ignored) { wifi = false; vpnConnected = false; }
         // 免打扰状态
         try { android.app.NotificationManager nm = (android.app.NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE); dndEnabled = nm != null && nm.getCurrentInterruptionFilter() != android.app.NotificationManager.INTERRUPTION_FILTER_ALL; } catch (Throwable ignored) { dndEnabled = false; }
         // 真实 WiFi 状态：开关 + 信号强度
