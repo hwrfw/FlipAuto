@@ -45,4 +45,6 @@ dependencies {
     implementation 'me.majiajie:tinypinyin:2.0.3'
     implementation 'com.google.zxing:core:3.5.3'
     testImplementation 'junit:junit:4.13.2'
+    // 单元测试里 android.jar 的 org.json 只是空壳，补一份真实实现用于解析发布信息
+    testImplementation 'org.json:json:20240303'
 }

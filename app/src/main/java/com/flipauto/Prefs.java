@@ -221,6 +221,24 @@ public final class Prefs {
     public java.util.Set<String> speedApps() { return new java.util.HashSet<>(data.getStringSet("speed_apps", java.util.Set.of())); }
     public void speedApps(java.util.Set<String> set) { data.edit().putStringSet("speed_apps", set == null ? java.util.Set.of() : new java.util.HashSet<>(set)).apply(); }
 
+    /** 开屏与回到应用时自动查询 GitHub 发布信息，每天最多一次。 */
+    public boolean autoCheckUpdate() { return data.getBoolean("update_auto", true); }
+    /** 上次检查更新时间（毫秒时间戳），0 表示从未检查。 */
+    public long updateCheckedAt() { return data.getLong("update_checked_at", 0); }
+    /** 缓存的最新版本号与安装包地址，用于在「关于」里直接显示，无需每次联网。 */
+    public String updateLatestVersion() { return data.getString("update_latest_version", ""); }
+    public String updateLatestUrl() { return data.getString("update_latest_url", ""); }
+    public void saveUpdate(String version, String url) {
+        data.edit().putLong("update_checked_at", System.currentTimeMillis())
+            .putString("update_latest_version", version == null ? "" : version)
+            .putString("update_latest_url", url == null ? "" : url).apply();
+    }
+    /** 只更新时间戳：查询失败时也算尝试过，避免每次回到应用都重试。 */
+    public void markUpdateChecked() { data.edit().putLong("update_checked_at", System.currentTimeMillis()).apply(); }
+    /** 已经提示过的版本，启动检查不再重复打扰。 */
+    public String updateNotifiedVersion() { return data.getString("update_notified_version", ""); }
+    public void updateNotifiedVersion(String version) { data.edit().putString("update_notified_version", version == null ? "" : version).apply(); }
+
     /** 状态栏通知图标最大显示数量，超出部分用三个点表示。默认 4，范围 2-8。 */
     public int statusNotificationCount() { return Math.max(2, Math.min(8, data.getInt("status_notification_count", 4))); }
     public void statusNotificationCount(int count) { data.edit().putInt("status_notification_count", Math.max(2, Math.min(8, count))).apply(); }

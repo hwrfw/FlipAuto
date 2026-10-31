@@ -71,6 +71,10 @@ public final class MainActivity extends Activity {
     private DetailSheet sheet;
     private TextView statusLabel;
     private boolean panelPreviewExpanded, bindingUI;
+    /** 关于页的更新行，后台检查完成后就地刷新文案。 */
+    private SettingsUi.ValueRow updateRow;
+    /** 是否有更新查询正在进行，避免重复请求触发 GitHub 限流。 */
+    private boolean checkingUpdate;
     private String editing = "dock", route = "main", category = "builtin", diagnosticText = "";
     private String draftKind;
     private ArrayList<String> draft;
@@ -112,9 +116,10 @@ public final class MainActivity extends Activity {
         else { route = getIntent().getStringExtra("section"); if (route == null) route = "main"; }
         showRoute(route);
         if (pendingImportUri != null) readImport(android.net.Uri.parse(pendingImportUri));
+        main.postDelayed(this::autoCheckUpdate, 1500);
     }
     @Override protected void onResume() {
-        super.onResume(); main.removeCallbacks(statusRefresh); main.post(statusRefresh); CoverApp.bridge(this).connect();
+        super.onResume(); main.removeCallbacks(statusRefresh); main.post(statusRefresh); CoverApp.bridge(this).connect(); main.post(this::autoCheckUpdate);
     }
     @Override protected void onPause() {
         main.removeCallbacks(statusRefresh);
@@ -207,7 +212,7 @@ public final class MainActivity extends Activity {
             new HomeGroup("group_apps", "应用与小组件", R.drawable.ic_ms_apps, () -> "固定应用 " + prefs.hubPins().size() + "/" + AppDockPlacement.LIMIT),
             new HomeGroup("group_appearance", "状态栏与外观", R.drawable.ic_ms_brightness_6, () -> prefs.statusScale() + "% · 界面缩放 " + prefs.uiScale() + "%"),
             new HomeGroup("group_device", "设备与权限", R.drawable.ic_ms_shield, () -> "特权模式：" + prefs.privilegeLabel()),
-            new HomeGroup("group_backup", "备份与关于", R.drawable.ic_ms_refresh, () -> "版本 " + BuildConfig.VERSION_NAME)
+            new HomeGroup("group_backup", "备份与关于", R.drawable.ic_ms_refresh, this::versionSummary)
         );
     }
     private List<Setting> settings() {
@@ -228,7 +233,7 @@ public final class MainActivity extends Activity {
             new Setting("设备与权限", "permissions", R.drawable.ic_ms_shield, "权限中心", "授权 无障碍 Shizuku 通知 电话 手电筒 特权模式 免root", () -> (CoverService.instance == null ? "无障碍未连接" : "无障碍已连接") + " · " + prefs.privilegeLabel()),
             new Setting("设备与权限", "diagnostics", R.drawable.ic_ms_info, "问题诊断", "兼容性 检测 复制", () -> "设备与窗口信息"),
             new Setting("备份与关于", "layout_backup", R.drawable.ic_ms_refresh, "布局备份与恢复", "保存 重置 撤销 默认", () -> prefs.data.contains("layout_backup") ? "已保存布局" : "尚未保存布局"),
-            new Setting("备份与关于", "about", R.drawable.ic_ms_info, "关于与更新日志", "版本 隐私 许可", () -> "版本 " + BuildConfig.VERSION_NAME)
+            new Setting("备份与关于", "about", R.drawable.ic_ms_info, "关于与更新日志", "版本 隐私 许可 更新", this::versionSummary)
         );
     }
     private void home() {
@@ -1104,6 +1109,16 @@ public final class MainActivity extends Activity {
             "版本 " + BuildConfig.VERSION_NAME + "（构建 " + BuildConfig.VERSION_CODE + "）\n"
             + (BuildConfig.DEBUG ? "验证版" : "正式版") + " · 支持 Android 13 – 17", null));
 
+        SettingsUi.section(body, "版本更新");
+        LinearLayout update = group("about-update");
+        SettingsUi.ValueRow check = SettingsUi.valueRow(this, "检查更新", updateStatus(), null);
+        check.setTag("update-check");
+        check.setOnClickListener(v -> checkUpdate(check));
+        updateRow = check;
+        update.addView(check);
+        update.addView(SettingsUi.settingRow(this, 0, "打开发布页", "在浏览器中查看全部版本与更新说明", () -> openLink(UpdateChecker.PAGE)));
+        toggle(update, "自动检查更新", "开屏与回到应用时查询一次 GitHub 发布信息，每天最多一次", "update_auto", true);
+
         SettingsUi.section(body, "版权声明");
         LinearLayout copyright = group("about-copyright");
         TextView copyrightText = SettingsUi.text(this,
@@ -1142,7 +1157,7 @@ public final class MainActivity extends Activity {
         TextView privacyText = SettingsUi.text(this,
             "本应用承诺：\n"
             + "• 不收集任何个人信息\n"
-            + "• 不联网、不上传数据\n"
+            + "• 仅在检查更新时访问 GitHub 的公开发布信息，不上传任何数据\n"
             + "• 通知内容仅在内存中处理，不落盘、不上传\n"
             + "• 所有设置仅存储在本地",
             13, SettingsUi.MUTED);
@@ -1163,6 +1178,104 @@ public final class MainActivity extends Activity {
         } catch (java.io.IOException e) { note("更新日志暂不可用"); }
 
         related("问题诊断", "diagnostics");
+    }
+
+    /** 首页与搜索里的版本摘要，缓存显示有新版本时一并提示。 */
+    private String versionSummary() {
+        String latest = prefs.updateLatestVersion();
+        if (!latest.isEmpty() && UpdateChecker.isNewer(latest, BuildConfig.VERSION_NAME)) return "版本 " + BuildConfig.VERSION_NAME + " · 新版本 " + latest;
+        return "版本 " + BuildConfig.VERSION_NAME;
+    }
+
+    /** 更新行的文案：优先显示缓存的检查结果，没有结果时提示可手动查询。 */
+    private String updateStatus() {
+        String latest = prefs.updateLatestVersion();
+        long checkedAt = prefs.updateCheckedAt();
+        if (latest.isEmpty() || checkedAt == 0) return "从 GitHub Releases 查询最新版本";
+        String when = "上次检查 " + relative(checkedAt);
+        if (UpdateChecker.isNewer(latest, BuildConfig.VERSION_NAME)) return "发现新版本 " + latest + " · " + when;
+        return "已是最新版本 · " + when;
+    }
+
+    private String relative(long time) {
+        long minutes = Math.max(0, (System.currentTimeMillis() - time) / 60000);
+        if (minutes < 1) return "刚刚";
+        if (minutes < 60) return minutes + " 分钟前";
+        long hours = minutes / 60;
+        if (hours < 24) return hours + " 小时前";
+        return (hours / 24) + " 天前";
+    }
+
+    /** 手动检查更新：查询 GitHub 发布接口，有新版本时弹出下载入口。 */
+    private void checkUpdate(SettingsUi.ValueRow row) {
+        if (checkingUpdate) return;
+        checkingUpdate = true;
+        row.value("正在查询 GitHub…");
+        String current = BuildConfig.VERSION_NAME;
+        worker.execute(() -> {
+            UpdateChecker.Result result = UpdateChecker.check(current);
+            main.post(() -> {
+                checkingUpdate = false;
+                if (isDestroyed() || !row.isAttachedToWindow()) return;
+                if (!result.ok()) { row.value(result.error); return; }
+                UpdateChecker.Release release = result.release;
+                prefs.saveUpdate(release.version, release.apkUrl);
+                row.value(updateStatus());
+                if (!result.newer) { toast("已是最新版本 " + current); return; }
+                showUpdate(release);
+            });
+        });
+    }
+
+    /**
+     * 自动检查：开启且距上次检查超过一天时触发，开屏与回到应用时各调用一次。
+     *
+     * <p>结果只写入缓存，不打断当前操作；首次发现某个新版本时用一条轻提示告知，
+     * 同一版本不再重复提醒。
+     */
+    private void autoCheckUpdate() {
+        if (checkingUpdate || !prefs.autoCheckUpdate()) return;
+        if (System.currentTimeMillis() - prefs.updateCheckedAt() < 86400_000L) return;
+        checkingUpdate = true;
+        String current = BuildConfig.VERSION_NAME;
+        worker.execute(() -> {
+            UpdateChecker.Result result = UpdateChecker.check(current);
+            main.post(() -> {
+                checkingUpdate = false;
+                if (isDestroyed()) return;
+                if (!result.ok()) { prefs.markUpdateChecked(); return; }
+                UpdateChecker.Release release = result.release;
+                prefs.saveUpdate(release.version, release.apkUrl);
+                if (updateRow != null && updateRow.isAttachedToWindow()) updateRow.value(updateStatus());
+                if (result.newer && !release.version.equals(prefs.updateNotifiedVersion())) {
+                    prefs.updateNotifiedVersion(release.version);
+                    toast("发现新版本 " + release.version + "，可在「关于」中查看");
+                }
+            });
+        });
+    }
+
+    /** 新版本详情：版本对比、安装包大小、更新说明与下载入口。 */
+    private void showUpdate(UpdateChecker.Release release) {
+        prefs.updateNotifiedVersion(release.version);
+        DetailSheet modal = openSheet("发现新版本 " + release.version);
+        StringBuilder text = new StringBuilder();
+        text.append("当前版本 ").append(BuildConfig.VERSION_NAME).append(" → ").append(release.version);
+        String size = UpdateChecker.size(release.apkSize);
+        if (!size.isEmpty()) text.append("\n安装包 ").append(size);
+        String notes = UpdateChecker.summary(release.notes, 600);
+        if (!notes.isEmpty()) text.append("\n\n").append(notes);
+        TextView words = SettingsUi.text(this, text.toString(), 14, SettingsUi.MUTED);
+        words.setPadding(Ui.dp(this, 14), 0, Ui.dp(this, 14), Ui.dp(this, 14));
+        modal.content.addView(words);
+        modal.content.addView(SettingsUi.button(this, "下载安装包", () -> { dismissSheet(); openLink(release.apkUrl); }));
+        modal.content.addView(SettingsUi.button(this, "稍后再说", this::dismissSheet));
+    }
+
+    private void openLink(String url) {
+        if (url == null || url.isEmpty()) { toast("没有可用的下载地址"); return; }
+        try { startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))); }
+        catch (Exception e) { toast("没有可打开链接的应用"); }
     }
     private void diagnostics() {
         begin("问题诊断", "diagnostics"); Display selected = Displays.selected(this, prefs); LinearLayout summary = group("diagnostic-summary"); summary.addView(SettingsUi.settingRow(this, R.drawable.ic_ms_info, "当前运行状态", CoverService.status, null)); summary.addView(SettingsUi.settingRow(this, R.drawable.ic_ms_phone_android, "目标外屏", displaySummary(), null));
